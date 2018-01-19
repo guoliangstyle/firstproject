@@ -1,0 +1,75 @@
+#include "stdafx.h"
+#include <iostream>
+#include <pylon/PylonIncludes.h>
+using namespace Pylon;
+using namespace std;
+
+
+#ifdef PYLON_WIN_BUILD             //如果定义了PYLON_WIN_BUILD则包括PylonGUI.h
+#	include<pylon/PylonGUI.h>
+#endif
+
+static const uint32_t c_countOfimagesToGrab = 100;
+
+int main()
+{
+	//Pylon初始化
+	Pylon::PylonAutoInitTerm autoInitTerm;
+	try
+	{
+		//创建一个Pylon设备
+		IPylonDevice* pDevice = CTlFactory::GetInstance().CreateFirstDevice();
+
+		//创建抓取图像的类CInstantCamera
+		CInstantCamera camera1( pDevice );
+		cout << "Using device : " << camera1.GetDeviceInfo().GetModelName() << endl;
+		//cout << "Device version : " << camera1.GetDeviceInfo().GetDeviceVersion << endl;
+
+		//分配用于抓取的缓存的最大数量,默认值为10
+		camera1.MaxNumBuffer = 5;
+
+		//开始抓取c_countOfimagesToGrab图像
+		camera1.StartGrabbing(c_countOfimagesToGrab);
+
+		//CGrabResultPtr会返回抓取数据
+		CGrabResultPtr ptrGrabResult;
+
+		while (camera1.IsGrabbing())
+		{
+			//等待一幅图像并且回收它
+			camera1.RetrieveResult(5000, ptrGrabResult, TimeoutHandling_ThrowException);
+
+			//判断是否抓取图像成功
+			if (ptrGrabResult->GrabSucceeded())
+			{
+				//获取图像的数据
+				cout << "SizeX: " << ptrGrabResult->GetWidth() << endl;
+				cout << "SizeY: " << ptrGrabResult->GetHeight() << endl;
+				const uint8_t *pImageBuffer = (uint8_t *)ptrGrabResult->GetBuffer();
+				cout << "Gray value of first pixel: " << (uint32_t)pImageBuffer[0] << endl << endl;
+#ifdef PYLON_WIN_BUILD
+				//显示抓取的图像
+				Pylon::DisplayImage(1, ptrGrabResult);
+#endif
+			}
+			else
+			{
+				cout << "Error: " << ptrGrabResult->GetErrorCode() << " " << ptrGrabResult->GetErrorDescription() << endl;
+			}
+		}
+	}
+	catch (const GenericException & er)
+	{
+		//异常处理
+		cerr << "An exception occurred." << endl << er.GetDescription() << endl;
+		
+	}
+	cerr << endl << "Press Enter to exit." << endl;
+	while (cin.get() != '\n');
+
+	//释放Pylon资源
+	PylonTerminate();
+
+
+    return 0;
+}
